@@ -81,7 +81,7 @@
                     </div>
 
                     <button type="submit" class="submit-btn" id="btnSubmit">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกข้อมูล
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล
                     </button>
                 </form>
                 <div id="statusMessage" class="status-message"></div>
@@ -92,15 +92,20 @@
         <div id="viewHistory" class="view">
             <header>
                 <h1><i class="fa-solid fa-clock-rotate-left"></i> ประวัติการบันทึก</h1>
-                <button id="btnRefreshHistory" class="icon-btn" title="ดึงข้อมูลใหม่">
-                    <i class="fa-solid fa-arrows-rotate"></i>
-                </button>
+                <div class="header-actions">
+                    <button id="btnRefreshHistory" class="icon-btn" title="รีเฟรช">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                    <button id="btnClearHistory" class="icon-btn danger" title="ล้างข้อมูลทั้งหมด">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </header>
             <main>
                 <div class="history-list" id="historyList">
                     <div class="empty-state">
                         <i class="fa-solid fa-box-open"></i>
-                        <p>ยังไม่มีประวัติ<br>หรือยังไม่ได้เชื่อมต่อ Google Sheets</p>
+                        <p>ยังไม่มีประวัติการบันทึก</p>
                     </div>
                 </div>
             </main>
@@ -115,7 +120,7 @@
         <div class="modal-content text-center success-content">
             <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
             <h2>บันทึกเรียบร้อย!</h2>
-            <p id="successDetail">ข้อมูลถูกเก็บลงใน Google Sheets แล้ว</p>
+            <p id="successDetail">ข้อมูลถูกเก็บในเครื่องแล้ว</p>
             <button id="btnCloseSuccess" class="primary-btn">ตกลง</button>
         </div>
     </div>
@@ -126,12 +131,7 @@
             <span class="close-btn" id="closeSettings">&times;</span>
             <h2><i class="fa-solid fa-gear"></i> ตั้งค่าระบบ</h2>
 
-            <div class="tabs">
-                <button class="tab-btn active" data-target="tabCategories">จัดการหัวข้อ</button>
-                <button class="tab-btn" data-target="tabConfig">Web App URL</button>
-            </div>
-
-            <!-- Category Management Tab -->
+            <!-- Category Management -->
             <div id="tabCategories" class="tab-content active">
                 <div class="category-manager-list" id="categoryManagerList"></div>
                 <button id="btnAddNewCategory" class="secondary-btn">
@@ -139,21 +139,6 @@
                 </button>
                 <div class="modal-actions">
                     <button id="btnSaveCategories" class="primary-btn">บันทึกหมวดหมู่</button>
-                </div>
-            </div>
-
-            <!-- Web App Config Tab -->
-            <div id="tabConfig" class="tab-content">
-                <div class="form-group">
-                    <label>Google Apps Script Web App URL</label>
-                    <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
-                    <p class="help-text">
-                        นำ URL ที่ได้จากการ Deploy Code.gs มาวางที่นี่ 
-                        <a href="README.md" target="_blank">อ่านคู่มือ</a>
-                    </p>
-                </div>
-                <div class="modal-actions">
-                    <button id="btnSaveConfig" class="primary-btn">บันทึก URL &amp; โหลดข้อมูล</button>
                 </div>
             </div>
         </div>

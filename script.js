@@ -1,9 +1,11 @@
 /* ===========================================================
-   script.js - Note App
+   script.js - Note App (localStorage only — no Google Sheets)
    ============================================================ */
 let appCategories = [];
-let WebAppURL = localStorage.getItem('NoteApp_WebUrl') || '';
 let selectedCatIndex = -1;
+
+const STORAGE_KEY_CATS    = 'NoteApp_Categories';
+const STORAGE_KEY_HISTORY = 'NoteApp_History';
 
 const defaultCategories = [
     { name: 'การเงิน',  icon: '💰', subcategories: ['ยืมเงิน', 'รายรับ', 'รายจ่าย'] },
@@ -20,16 +22,29 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadCategories() {
-    document.getElementById('scriptUrl').value = WebAppURL;
-    const cached = localStorage.getItem('NoteApp_Categories');
+    const cached = localStorage.getItem(STORAGE_KEY_CATS);
     appCategories = cached ? JSON.parse(cached) : [...defaultCategories];
     renderCategoryPills();
-    if (WebAppURL) fetchCategoriesFromSheet();
+}
+
+/* ──────────────────── LOCAL HISTORY ──────────────────── */
+function getHistory() {
+    const raw = localStorage.getItem(STORAGE_KEY_HISTORY);
+    return raw ? JSON.parse(raw) : [];
+}
+
+function saveHistory(history) {
+    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
+}
+
+function addHistoryEntry(entry) {
+    const history = getHistory();
+    history.unshift({ ...entry, timestamp: new Date().toISOString() });
+    saveHistory(history);
 }
 
 /* ──────────────────── NAVIGATION ──────────────────── */
 function setupNavigation() {
-    // Bottom nav buttons
     document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
         btn.addEventListener('click', () => showView(btn.dataset.view));
     });
@@ -48,7 +63,7 @@ function showView(viewId) {
     const navBtn = document.querySelector(`.nav-btn[data-view="${viewId}"]`);
     if (navBtn) navBtn.classList.add('active');
 
-    if (viewId === 'viewHistory') fetchHistory();
+    if (viewId === 'viewHistory') renderHistory(getHistory());
 }
 
 /* ──────────────────── CATEGORY PILLS (MAIN) ──────────────────── */
@@ -81,7 +96,6 @@ function selectCategory(index) {
     subContainer.appendChild(makeSubBtn('__other__', '➕ ระบุเอง'));
 
     document.getElementById('subCategoryGroup').style.display = 'block';
-    // re-trigger animation
     document.getElementById('subCategoryGroup').classList.remove('slide-in');
     void document.getElementById('subCategoryGroup').offsetWidth;
     document.getElementById('subCategoryGroup').classList.add('slide-in');
@@ -124,39 +138,15 @@ function setupFormListeners() {
             if (!subcat) { showMsg('กรุณาระบุหัวข้อย่อย', 'error'); return; }
         }
 
-        if (!WebAppURL) { showMsg('ยังไม่ได้ตั้งค่า Web App URL (กดปุ่ม ตั้งค่า)', 'error'); return; }
+        const cat    = appCategories[selectedCatIndex];
+        const detail = document.getElementById('recordDetail').value.trim();
+        const amount = document.getElementById('recordAmount').value;
 
-        const cat     = appCategories[selectedCatIndex];
-        const detail  = document.getElementById('recordDetail').value.trim();
-        const amount  = document.getElementById('recordAmount').value;
-        const btnEl   = document.getElementById('btnSubmit');
-        const origTxt = btnEl.innerHTML;
+        const entry = { category: cat.name, icon: cat.icon, subcategory: subcat, detail, amount };
+        addHistoryEntry(entry);
 
-        btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
-        btnEl.disabled  = true;
-
-        try {
-            const payload = { action: 'add_note', category: cat.name, subcategory: subcat, detail, amount };
-            console.log('Sending payload:', payload);
-            
-            // ใช้ mode: 'no-cors' เพื่อเลี่ยงปัญหา CORS กับ Google Apps Script แบบ Web App
-            // ข้อเสียคือเราจะไม่เห็น Response Body (data.status) แต่จะรู้ว่าส่งถึงถ้าไม่ throw error
-            await fetch(WebAppURL, { 
-                method: 'POST', 
-                mode: 'no-cors',
-                body: JSON.stringify(payload) 
-            });
-
-            showSuccessModal(cat, subcat, amount);
-            resetForm();
-            
-        } catch (err) {
-            console.error('Save error:', err);
-            showMsg('เกิดข้อผิดพลาด: ' + err.message, 'error');
-        } finally {
-            btnEl.innerHTML = origTxt;
-            btnEl.disabled  = false;
-        }
+        showSuccessModal(cat, subcat, amount);
+        resetForm();
     });
 }
 
@@ -177,26 +167,6 @@ function showSuccessModal(cat, subcat, amount) {
 }
 
 /* ──────────────────── HISTORY ──────────────────── */
-async function fetchHistory() {
-    if (!WebAppURL) {
-        document.getElementById('historyList').innerHTML =
-            '<div class="empty-state"><i class="fa-solid fa-link-slash"></i><p>ยังไม่ได้เชื่อมต่อ Google Sheets<br><small>กด ตั้งค่า แล้วใส่ Web App URL</small></p></div>';
-        return;
-    }
-
-    document.getElementById('historyList').innerHTML =
-        '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><p>กำลังโหลด...</p></div>';
-
-    try {
-        const res  = await fetch(WebAppURL, { method: 'POST', body: JSON.stringify({ action: 'get_history' }) });
-        const data = await res.json();
-        if (data.status === 'success') renderHistory(data.history);
-    } catch {
-        document.getElementById('historyList').innerHTML =
-            '<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><p>โหลดไม่ได้ (ตรวจสอบ URL)</p></div>';
-    }
-}
-
 function renderHistory(history) {
     const list = document.getElementById('historyList');
     if (!history?.length) {
@@ -212,7 +182,7 @@ function renderHistory(history) {
         div.className = 'history-item';
         div.innerHTML = `
             <div class="history-top">
-                <span class="history-cats">${item.category}</span>
+                <span class="history-cats">${item.icon || ''} ${item.category}</span>
                 <span class="history-tag">${item.subcategory}</span>
             </div>
             <div class="history-bottom">
@@ -225,14 +195,23 @@ function renderHistory(history) {
     });
 }
 
+/* ──────────────────── CLEAR DATA ──────────────────── */
+function clearAllData() {
+    if (!confirm('ต้องการลบประวัติทั้งหมดใช่ไหม?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้')) return;
+    localStorage.removeItem(STORAGE_KEY_HISTORY);
+    renderHistory([]);
+    showMsg('ล้างประวัติเรียบร้อยแล้ว', 'success');
+}
+
 /* ──────────────────── MODALS ──────────────────── */
-function openModal(id) { document.getElementById(id).classList.add('show'); }
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 function setupModalListeners() {
     document.getElementById('closeSettings')  .addEventListener('click', () => closeModal('settingsModal'));
     document.getElementById('btnCloseSuccess').addEventListener('click', () => closeModal('successModal'));
-    document.getElementById('btnRefreshHistory').addEventListener('click', fetchHistory);
+    document.getElementById('btnRefreshHistory').addEventListener('click', () => renderHistory(getHistory()));
+    document.getElementById('btnClearHistory').addEventListener('click', clearAllData);
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', e => {
@@ -243,23 +222,12 @@ function setupModalListeners() {
         });
     });
 
-    document.getElementById('btnSaveConfig').addEventListener('click', () => {
-        const url = document.getElementById('scriptUrl').value.trim();
-        if (url) {
-            localStorage.setItem('NoteApp_WebUrl', url);
-            WebAppURL = url;
-            closeModal('settingsModal');
-            alert('บันทึก URL เรียบร้อย กำลังโหลดข้อมูลหมวดหมู่...');
-            fetchCategoriesFromSheet();
-        }
-    });
-
     document.getElementById('btnAddNewCategory').addEventListener('click', () => {
         appCategories.push({ name: '', icon: '📌', subcategories: [] });
         renderCategoryManager();
     });
 
-    document.getElementById('btnSaveCategories').addEventListener('click', async () => {
+    document.getElementById('btnSaveCategories').addEventListener('click', () => {
         const items = document.querySelectorAll('.manage-cat-item');
         const newCats = [];
         items.forEach(item => {
@@ -269,20 +237,9 @@ function setupModalListeners() {
             if (name) newCats.push({ icon: icon || '📌', name, subcategories: subs });
         });
         appCategories = newCats;
-        localStorage.setItem('NoteApp_Categories', JSON.stringify(appCategories));
+        localStorage.setItem(STORAGE_KEY_CATS, JSON.stringify(appCategories));
         renderCategoryPills();
-
-        if (WebAppURL) {
-            const btn = document.getElementById('btnSaveCategories');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
-            try {
-                await fetch(WebAppURL, { method: 'POST', body: JSON.stringify({ action: 'save_categories', categories: appCategories }) });
-                alert('บันทึกหมวดหมู่เรียบร้อย');
-            } catch { alert('บันทึกในเครื่องแล้ว แต่ส่งไป Sheet ไม่ได้'); }
-            btn.innerHTML = 'บันทึกหมวดหมู่';
-        } else {
-            alert('บันทึกลงเครื่องเรียบร้อย');
-        }
+        alert('บันทึกหมวดหมู่เรียบร้อย');
         closeModal('settingsModal');
     });
 }
@@ -318,16 +275,4 @@ function showMsg(msg, type) {
     el.className = `status-message ${type}`;
     clearTimeout(el._t);
     el._t = setTimeout(() => { el.className = 'status-message'; }, 5000);
-}
-
-async function fetchCategoriesFromSheet() {
-    try {
-        const res  = await fetch(WebAppURL);
-        const data = await res.json();
-        if (data.status === 'success' && data.categories?.length) {
-            appCategories = data.categories;
-            localStorage.setItem('NoteApp_Categories', JSON.stringify(appCategories));
-            renderCategoryPills();
-        }
-    } catch { /* silent */ }
 }

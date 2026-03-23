@@ -85,6 +85,10 @@ header h1 i { color: var(--primary); }
     transition: color 0.2s, background 0.2s;
 }
 .icon-btn:hover { color: var(--primary); background: var(--bg); }
+.icon-btn.danger { color: #e53935; }
+.icon-btn.danger:hover { color: #b71c1c; background: #fce8e6; }
+
+.header-actions { display: flex; gap: 6px; align-items: center; }
 
 /* ===== MAIN CONTENT ===== */
 main {
