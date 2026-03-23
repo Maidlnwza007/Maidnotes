@@ -137,18 +137,22 @@ function setupFormListeners() {
 
         try {
             const payload = { action: 'add_note', category: cat.name, subcategory: subcat, detail, amount };
-            const res     = await fetch(WebAppURL, { method: 'POST', body: JSON.stringify(payload) });
-            const data    = await res.json();
-            if (data.status === 'success') {
-                showSuccessModal(cat, subcat, amount);
-                resetForm();
-            } else {
-                showMsg('เกิดข้อผิดพลาด: ' + data.message, 'error');
-            }
-        } catch (err) {
-            // Fallback (CORS no-cors)
-            showSuccessModal(appCategories[selectedCatIndex], subcat, amount);
+            console.log('Sending payload:', payload);
+            
+            // ใช้ mode: 'no-cors' เพื่อเลี่ยงปัญหา CORS กับ Google Apps Script แบบ Web App
+            // ข้อเสียคือเราจะไม่เห็น Response Body (data.status) แต่จะรู้ว่าส่งถึงถ้าไม่ throw error
+            await fetch(WebAppURL, { 
+                method: 'POST', 
+                mode: 'no-cors',
+                body: JSON.stringify(payload) 
+            });
+
+            showSuccessModal(cat, subcat, amount);
             resetForm();
+            
+        } catch (err) {
+            console.error('Save error:', err);
+            showMsg('เกิดข้อผิดพลาด: ' + err.message, 'error');
         } finally {
             btnEl.innerHTML = origTxt;
             btnEl.disabled  = false;
